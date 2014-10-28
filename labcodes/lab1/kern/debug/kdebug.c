@@ -302,5 +302,21 @@ print_stackframe(void) {
       *           NOTICE: the calling funciton's return addr eip  = ss:[ebp+4]
       *                   the calling funciton's ebp = ss:[ebp]
       */
+    uint8_t counter = 0;
+    uint32_t _eip = 0,_ebp = 0;
+    _ebp = read_ebp();
+    _eip = read_eip();
+    while(_ebp != 0)
+    {
+	cprintf("%d",counter);
+	cprintf(" ebp : %x eip: %x",_ebp,_eip);
+	cprintf(" args : %8x %8x %8x %8x\n",*((uint32_t*)_ebp+2),*((uint32_t*)_ebp+3),*((uint32_t*)_ebp+4),*((uint32_t*)_ebp+5));
+	print_debuginfo(_eip);
+	_ebp = *(uint32_t *) _ebp;	//renew the ebp.
+	_eip = *(uint32_t *) (( uint32_t *)_ebp + 1);
+	_eip--;				//adjust the _eip to point the call instruction;
+	counter++;
+    }
+
 }
 
