@@ -216,7 +216,7 @@ qemu-nox: $(UCOREIMG)
 	$(V)$(QEMU) -serial mon:stdio -hda $< -nographic
 TERMINAL        :=gnome-terminal
 run-gdb: $(UCOREIMG)
-              $(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
+		$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
 debug: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
 	$(V)sleep 2
