@@ -396,6 +396,27 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
     }
     return NULL;          // (8) return page table entry
 #endif
+    pde_t *pdep = &pgdir[PDX(la)];
+    if(!(*pdep & PTE_P) )		//Not exist
+    {
+        if(create != 0 ) 
+	{
+	    struct Page *tablepage;
+	    if((tablepage = alloc_page()) == NULL)     //alloc error;
+	    {
+		cprintf("get_pte alloc_page error\n");
+		return NULL ;
+	    }
+	    set_page_ref(tablepage,1);
+	    uintptr_t pa = page2pa(tablepage);
+	    memset(KADDR(pa),0,PGSIZE);
+	    *pdep = pa | PTE_P | PTE_W |PTE_U;
+	}
+	else
+	    return NULL;
+
+    }
+    return &((pte_t *)KADDR(PDE_ADDR(*pdep)))[PTX(la)];
 }
 
 //get_page - get related Page struct for linear address la using PDT pgdir
