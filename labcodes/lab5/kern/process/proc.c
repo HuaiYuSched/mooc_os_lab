@@ -115,8 +115,10 @@ alloc_proc(void) {
 		proc->cr3 = boot_cr3;
 		proc->flags = 0;
 		strcpy(proc->name,"");
-		list_init(&proc->list_link);
-		list_init(&proc->hash_link);
+//		list_init(&proc->list_link);
+//		list_init(&proc->hash_link);
+		proc->wait_state = 0;
+		proc->cptr = proc->yptr = proc->optr = NULL;
     }
     return proc;
 }
@@ -415,6 +417,8 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
 	
 	if((proc = alloc_proc())==NULL)
 		goto bad_fork_cleanup_proc;
+	assert(current->wait_state == 0);
+	proc->parent = current;
 	
 	if((setup_kstack(proc))!=0)
 		goto bad_fork_cleanup_kstack;
@@ -427,12 +431,12 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     {
 		proc->pid=get_pid();
         hash_proc(proc);
-       	list_add(&proc_list,&proc->list_link);
-       	nr_process++;
+		set_links(proc);
     }
     local_intr_restore(intr_flag);
 	wakeup_proc(proc);
 	ret=proc->pid;
+
 fork_out:
     return ret;
 
@@ -811,7 +815,7 @@ user_main(void *arg) {
 #ifdef TEST
     KERNEL_EXECVE2(TEST, TESTSTART, TESTSIZE);
 #else
-    KERNEL_EXECVE(exit);
+    KERNEL_EXECVE(waitkill);
 #endif
     panic("user_main execve failed.\n");
 }

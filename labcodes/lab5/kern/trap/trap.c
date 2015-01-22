@@ -53,12 +53,16 @@ idt_init(void) {
       *     You don't know the meaning of this instruction? just google it! and check the libs/x86.h to know more.
       *     Notice: the argument of lidt is idt_pd. try to find it!
       */
+     /* LAB5 YOUR CODE */ 
+     //you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
+     //so you should setup the syscall interrupt gate in here
     int i = 0;
     extern uintptr_t __vectors[];
     for(i = 0 ; i<=256 ;i++)
     {
         SETGATE(idt[i],0,KERNEL_CS,__vectors[i],DPL_KERNEL);
     }
+	SETGATE(idt[T_SYSCALL],1,KERNEL_CS,__vectors[T_SYSCALL],DPL_USER);
     lidt(&idt_pd);
     
 }
@@ -225,13 +229,16 @@ trap_dispatch(struct trapframe *tf) {
          * (3) Too Simple? Yes, I think so!
          */
 ticks++;
-	if(ticks % 100 ==0)
-	    print_ticks();
+	if(ticks % TICK_NUM ==0)
+	{
+	//	print_ticks();
         /* LAB5 YOUR CODE */
         /* you should upate you lab1 code (just add ONE or TWO lines of code):
          *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
          */
-  
+		current->need_resched = 1;
+	//	cprintf("need_resched\n");
+	}
         break;
     case IRQ_OFFSET + IRQ_COM1:
         c = cons_getc();
