@@ -73,9 +73,9 @@ default_init_memmap(struct Page *base, size_t n) {
         assert(PageReserved(p));
         p->flags = p->property = 0;
         set_page_ref(p, 0);
+	SetPageProperty(p);
     }
     base->property = n;
-    SetPageProperty(base);
     nr_free += n;
     list_add(&free_list, &(base->page_link));
 }
@@ -83,27 +83,36 @@ default_init_memmap(struct Page *base, size_t n) {
 static struct Page *
 default_alloc_pages(size_t n) {
     assert(n > 0);
-    if (n > nr_free) {
+    if (n > nr_free) 
+    {
         return NULL;
     }
     struct Page *page = NULL;
     list_entry_t *le = &free_list;
-    while ((le = list_next(le)) != &free_list) {
+    while ((le = list_next(le)) != &free_list) 
+    {
         struct Page *p = le2page(le, page_link);
-        if (p->property >= n) {
+        if (p->property >= n) 
+	{
             page = p;
             break;
         }
     }
-    if (page != NULL) {
+    if (page != NULL) 
+    {
+	uint32_t i;
         list_del(&(page->page_link));
-        if (page->property > n) {
+        if (page->property > n) 
+	{
             struct Page *p = page + n;
             p->property = page->property - n;
             list_add(&free_list, &(p->page_link));
-    }
+	}
+	for( i=0; i<n;i++)
+	{
+	    ClearPageProperty(page+i);
+	}
         nr_free -= n;
-        ClearPageProperty(page);
     }
     return page;
 }
@@ -112,25 +121,28 @@ static void
 default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
     struct Page *p = base;
-    for (; p != base + n; p ++) {
+    for (; p != base + n; p ++) 
+    {
         assert(!PageReserved(p) && !PageProperty(p));
         p->flags = 0;
         set_page_ref(p, 0);
+        SetPageProperty(p);
+
     }
     base->property = n;
-    SetPageProperty(base);
     list_entry_t *le = list_next(&free_list);
-    while (le != &free_list) {
+    while (le != &free_list)
+    {
         p = le2page(le, page_link);
         le = list_next(le);
-        if (base + base->property == p) {
+        if (base + base->property == p) 
+	{
             base->property += p->property;
-            ClearPageProperty(p);
             list_del(&(p->page_link));
         }
-        else if (p + p->property == base) {
+        else if (p + p->property == base) 
+	{
             p->property += base->property;
-            ClearPageProperty(base);
             base = p;
             list_del(&(p->page_link));
         }
@@ -230,8 +242,8 @@ default_check(void) {
     assert(p0 + 2 == p1);
 
     p2 = p0 + 1;
-    free_page(p0);
     free_pages(p1, 3);
+    free_page(p0);
     assert(PageProperty(p0) && p0->property == 1);
     assert(PageProperty(p1) && p1->property == 3);
 
