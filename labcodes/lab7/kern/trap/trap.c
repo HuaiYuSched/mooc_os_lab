@@ -57,6 +57,15 @@ idt_init(void) {
      /* LAB5 YOUR CODE */ 
      //you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
      //so you should setup the syscall interrupt gate in here
+    int i = 0;
+    extern uintptr_t __vectors[];
+    for(i = 0 ; i<=256 ;i++)
+    {
+        SETGATE(idt[i],0,KERNEL_CS,__vectors[i],DPL_KERNEL);
+    }
+	SETGATE(idt[T_SYSCALL],1,KERNEL_CS,__vectors[T_SYSCALL],DPL_USER);
+    lidt(&idt_pd);
+    
 }
 
 static const char *
@@ -211,7 +220,7 @@ trap_dispatch(struct trapframe *tf) {
         break;
     case IRQ_OFFSET + IRQ_TIMER:
 #if 0
-    LAB3 : If some page replacement algorithm(such as CLOCK PRA) need tick to change the priority of pages,
+    LAB3 : If some page replacement algorithm(such as CLOCK PRA) need tick to change the priority of pages, 
     then you can add code here. 
 #endif
         /* LAB1 YOUR CODE : STEP 3 */
@@ -220,10 +229,15 @@ trap_dispatch(struct trapframe *tf) {
          * (2) Every TICK_NUM cycle, you can print some info using a funciton, such as print_ticks().
          * (3) Too Simple? Yes, I think so!
          */
+ticks++;
+	if(ticks % TICK_NUM ==0)
+	{
+	//	print_ticks();
         /* LAB5 YOUR CODE */
         /* you should upate you lab1 code (just add ONE or TWO lines of code):
          *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
          */
+		current->need_resched = 1;
         /* LAB6 YOUR CODE */
         /* IMPORTANT FUNCTIONS:
 	     * run_timer_list
@@ -232,6 +246,8 @@ trap_dispatch(struct trapframe *tf) {
          *    Every tick, you should update the system time, iterate the timers, and trigger the timers which are end to call scheduler.
          *    You can use one funcitons to finish all these things.
          */
+		run_timer_list();
+	}
         break;
     case IRQ_OFFSET + IRQ_COM1:
         c = cons_getc();
