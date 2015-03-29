@@ -168,7 +168,8 @@ KINCLUDE	+= kern/debug/ \
 			   kern/fs/swap/ \
 			   kern/fs/vfs/ \
 			   kern/fs/devs/ \
-			   kern/fs/sfs/ 
+			   kern/fs/sfs/ \
+			   kern/smp
 
 
 KSRCDIR		+= kern/init \
@@ -185,7 +186,8 @@ KSRCDIR		+= kern/init \
 			   kern/fs/swap \
 			   kern/fs/vfs \
 			   kern/fs/devs \
-			   kern/fs/sfs
+			   kern/fs/sfs  \
+			   kern/smp
 
 KCFLAGS		+= $(addprefix -I,$(KINCLUDE))
 
@@ -193,14 +195,21 @@ $(call add_files_cc,$(call listf_cc,$(KSRCDIR)),kernel,$(KCFLAGS))
 
 KOBJS	= $(call read_packet,kernel libs)
 
+
+entryother: entryother.S
+	$(CC) $(CFLAGS) -fno-pic -nostdinc -Ikern/mm/ -c entryother.S
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o bootblockother.o entryother.o
+	$(OBJCOPY) -S -O binary -j .text bootblockother.o entryother
+	$(OBJDUMP) -S bootblockother.o > entryother.asm
+
 # create kernel target
 kernel = $(call totarget,kernel)
 
 $(kernel): tools/kernel.ld
 
-$(kernel): $(KOBJS)
+$(kernel): $(KOBJS) entryother
 	@echo + ld $@
-	$(V)$(LD) $(LDFLAGS) -T tools/kernel.ld -o $@ $(KOBJS)
+	$(LD) $(LDFLAGS) -T tools/kernel.ld -o $@ $(KOBJS) -b binary entryother
 	@$(OBJDUMP) -S $@ > $(call asmfile,kernel)
 	@$(OBJDUMP) -t $@ | $(SED) '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(call symfile,kernel)
 
@@ -313,6 +322,9 @@ qemu-mon: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 qemu: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) -parallel stdio $(QEMUOPTS) -serial null
 
+qemu-smp: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
+	$(V)$(QEMU) -parallel stdio $(QEMUOPTS) -smp 2 -serial null
+
 qemu-nox: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) -serial mon:stdio $(QEMUOPTS) -nographic
 
@@ -323,6 +335,11 @@ TERMINAL := gnome-terminal
 
 debug: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) -S -s -parallel stdio $(QEMUOPTS) -serial null &
+	$(V)sleep 2
+	$(V)$(TERMINAL) -e "$(GDB) -q -x tools/gdbinit"
+
+debug-smp: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
+	$(V)$(QEMU) -S -s -parallel stdio $(QEMUOPTS) -smp 4 -serial null &
 	$(V)sleep 2
 	$(V)$(TERMINAL) -e "$(GDB) -q -x tools/gdbinit"
 
