@@ -75,6 +75,16 @@ void print_pgdir(void);
             (void *) (__m_pa + KERNBASE);                               \
         })
 
+#ifndef __ASSEMBLER__
+
+static inline uint32_t v2p(void *a) { return ((uint32_t ) (a))  - KERNBASE; }
+static inline void *p2v(uint32_t a) { return (void *) ((a) + KERNBASE); }
+
+#endif
+
+#define V2P(a) (((uint32_t) (a)) - KERNBASE)
+#define P2V(a) (((void *) (a)) + KERNBASE)
+
 extern struct Page *pages;
 extern size_t npage;
 
@@ -145,3 +155,5 @@ extern char bootstack[], bootstacktop[];
 
 #endif /* !__KERN_MM_PMM_H__ */
 
+void enable_paging(void);
+void gdt_init(void);
