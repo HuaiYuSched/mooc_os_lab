@@ -77,8 +77,9 @@ extern int ncpu;
 // holding those two variables in the local cpu's struct cpu.
 // This is similar to how thread-local variables are implemented
 // in thread libraries such as Linux pthreads.
-extern struct cpu *cpu asm("%gs:0");       // &cpus[cpunum()]
-extern struct proc *proc asm("%gs:4");     // cpus[cpunum()].proc
+#define current_cpu (&cpus[cpunum()])       // &cpus[cpunum()]
+//extern struct proc *proc asm("%gs:4");     // cpus[cpunum()].proc
+#define current_proc current_cpu->proc
 
 
 //PAGEBREAK: 17

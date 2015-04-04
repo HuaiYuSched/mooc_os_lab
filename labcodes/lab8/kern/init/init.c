@@ -40,9 +40,9 @@ kern_init(void) {
 //    grade_backtrace();
 	mpinit();
 	lapicinit();
-	cprintf("\ncpu%d: starting xv6\n\n", cpu->id);
     pmm_init();                 // init physical memory management
 
+	cprintf("\ncpu%d: starting ucore\n\n", current_cpu->id);
     pic_init();                 // init interrupt controller
     idt_init();                 // init interrupt descriptor table
 
@@ -145,14 +145,11 @@ static void load_gdt()
   c->gdt[SEG_KTEXT] = SEG(STA_X | STA_R, 0x0, 0xFFFFFFFF, DPL_KERNEL),
   c->gdt[SEG_KDATA] = SEG(STA_W, 0x0, 0xFFFFFFFF, DPL_KERNEL),
   c->gdt[SEG_UTEXT] = SEG(STA_X | STA_R, 0x0, 0xFFFFFFFF, DPL_USER),
-  c->gdt[SEG_UDATA] = SEG(STA_W, 0x0, 0xFFFFFFFF, DPL_USER),
-//  c->gdt[SEG_TSS] = SEGTSS(STS_T32A, (uintptr_t)&ts, sizeof(ts), DPL_KERNEL);
-  c->gdt[SEG_KCPU] = SEG(STA_W, ((uint32_t)&c->cpu), 8, DPL_KERNEL);
+  c->gdt[SEG_UDATA] = SEG(STA_W, 0x0, 0xFFFFFFFF, DPL_USER);
   lgdt_cpu(c->gdt,sizeof(c->gdt));
-  loadgs(SEG_KCPU << 3);
 
-  cpu = c;
-  proc = 0;
+//  current_cpu = c;
+  current_proc = 0;
 }
 
 // Other CPUs jump here from entryother.S.
@@ -170,11 +167,13 @@ static void
 mpmain(void)
 {
   load_gdt();	//build a new GDT for each cpu
-  cprintf("cpu%d: starting\n", cpu->id);
+  cprintf("cpu%d: starting\n", current_cpu->id);
 //  loadidt();       // load idt register
-  xchg(&cpu->started, 1); // tell startothers() we're up
-  //schedule();     // start running processes
-  cpu_idle();
+  xchg(&current_cpu->started, 1); // tell startothers() we're up
+  cpu_idle(); 
+//  for(;;)
+//  {
+//    sti();
 }
 
 pde_t entrypgdir[];  // For entry.S
