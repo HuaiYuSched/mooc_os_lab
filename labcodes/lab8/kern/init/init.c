@@ -58,9 +58,7 @@ kern_init(void) {
 	startothers();
     intr_enable();              // enable irq interrupt
 
-    //LAB1: CAHLLENGE 1 If you try to do it, uncomment lab1_switch_test()
-    // user/kernel mode switch test
-    //lab1_switch_test();
+
 	mpmain();
     
  //   cpu_idle();                 // run idle process
@@ -104,26 +102,6 @@ lab1_print_cur_status(void) {
     round ++;
 }
 
-static void
-lab1_switch_to_user(void) {
-    //LAB1 CHALLENGE 1 : TODO
-}
-
-static void
-lab1_switch_to_kernel(void) {
-    //LAB1 CHALLENGE 1 :  TODO
-}
-
-static void
-lab1_switch_test(void) {
-    lab1_print_cur_status();
-    cprintf("+++ switch to  user  mode +++\n");
-    lab1_switch_to_user();
-    lab1_print_cur_status();
-    cprintf("+++ switch to kernel mode +++\n");
-    lab1_switch_to_kernel();
-    lab1_print_cur_status();
-}
 
 static inline void
 lgdt_cpu(struct segdesc *p, int size)
@@ -141,11 +119,13 @@ static void load_gdt()
 {
   struct cpu *c; 
   c = &cpus[cpunum()];
-  
   c->gdt[SEG_KTEXT] = SEG(STA_X | STA_R, 0x0, 0xFFFFFFFF, DPL_KERNEL),
   c->gdt[SEG_KDATA] = SEG(STA_W, 0x0, 0xFFFFFFFF, DPL_KERNEL),
   c->gdt[SEG_UTEXT] = SEG(STA_X | STA_R, 0x0, 0xFFFFFFFF, DPL_USER),
   c->gdt[SEG_UDATA] = SEG(STA_W, 0x0, 0xFFFFFFFF, DPL_USER);
+  c->gdt[SEG_TSS]   = SEGTSS(STS_T32A, (uintptr_t)&c->ts, sizeof(struct taskstate), DPL_KERNEL);
+  load_esp0((uintptr_t)bootstacktop);
+  c->ts.ts_ss0 = KERNEL_DS;
   lgdt_cpu(c->gdt,sizeof(c->gdt));
 
 //  current_cpu = c;
@@ -158,6 +138,7 @@ mpenter(void)
 {
 //  switchkvm(); 
   enable_paging();
+  idt_init();
   lapicinit();
   mpmain();
 }
@@ -171,9 +152,7 @@ mpmain(void)
 //  loadidt();       // load idt register
   xchg(&current_cpu->started, 1); // tell startothers() we're up
   cpu_idle(); 
-//  for(;;)
-//  {
-//    sti();
+
 }
 
 pde_t entrypgdir[];  // For entry.S
