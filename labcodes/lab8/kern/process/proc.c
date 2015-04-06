@@ -236,14 +236,12 @@ void
 proc_run(struct proc_struct *proc) {
     if (proc != current) {
         struct proc_struct *prev = current, *next = proc;
-		spin_lock(&proc_list->lock);
-        {
+		{
             current = proc;
             load_esp0(next->kstack + KSTACKSIZE);
             lcr3(next->cr3);
             switch_to(&(prev->context), &(next->context));
-        }
-		spin_unlock(&proc_list->lock);
+		}
     }
 }
 
@@ -549,9 +547,8 @@ do_exit(int error_code) {
     current->state = PROC_ZOMBIE;
     current->exit_code = error_code;
     
-    bool intr_flag;
     struct proc_struct *proc;
-    local_intr_save(intr_flag);
+	spin_lock(&proc_list->lock);
     {
         proc = current->parent;
         if (proc->wait_state == WT_CHILD) {
@@ -574,7 +571,7 @@ do_exit(int error_code) {
             }
         }
     }
-    local_intr_restore(intr_flag);
+	spin_unlock(&proc_list->lock);
     
     schedule();
     panic("do_exit will not return!! %d.\n", current->pid);
@@ -892,7 +889,7 @@ do_wait(int pid, int *code_store) {
     }
 
     struct proc_struct *proc;
-    bool intr_flag, haskid;
+    bool  haskid;
 repeat:
     haskid = 0;
     if (pid != 0) {
@@ -931,12 +928,12 @@ found:
     if (code_store != NULL) {
         *code_store = proc->exit_code;
     }
-    local_intr_save(intr_flag);
+	spin_lock(&proc_list->lock);
     {
         unhash_proc(proc);
         remove_links(proc);
     }
-    local_intr_restore(intr_flag);
+	spin_unlock(&proc_list->lock);
     put_kstack(proc);
     kfree(proc);
     return 0;
@@ -1108,13 +1105,12 @@ do_sleep(unsigned int time) {
     if (time == 0) {
         return 0;
     }
-    bool intr_flag;
-    local_intr_save(intr_flag);
+	spin_lock(&proc_list->lock);
     timer_t __timer, *timer = timer_init(&__timer, current, time);
     current->state = PROC_SLEEPING;
     current->wait_state = WT_TIMER;
     add_timer(timer);
-    local_intr_restore(intr_flag);
+	spin_unlock(&proc_list->lock);
 
     schedule();
 

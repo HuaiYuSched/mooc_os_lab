@@ -152,6 +152,8 @@ mpmain(void)
   cprintf("cpu%d: starting\n", current_cpu->id);
 //  loadidt();       // load idt register
   xchg(&current_cpu->started, 1); // tell startothers() we're up
+  if(current_cpu->id != 0)
+	  while(1);
   cpu_idle(); 
 
 }

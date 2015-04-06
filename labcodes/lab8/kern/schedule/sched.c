@@ -62,6 +62,7 @@ sched_init(void) {
 void
 wakeup_proc(struct proc_struct *proc) {
     assert(proc->state != PROC_ZOMBIE);
+//	assert(!spin_is_locked(&rq->lock));
     spin_lock(&rq->lock);
     {
         if (proc->state != PROC_RUNNABLE) {
@@ -95,11 +96,12 @@ schedule(void) {
             next = idleproc;
         }
         next->runs ++;
+		
+		spin_unlock(&rq->lock);
         if (next != current) {
             proc_run(next);
         }
     }
-    spin_unlock(&rq->lock);
 }
 
 void
