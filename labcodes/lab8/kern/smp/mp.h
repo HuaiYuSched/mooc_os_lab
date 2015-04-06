@@ -1,5 +1,6 @@
 // See MultiProcessor Specification Version 1.[14]
-#include "types.h"
+#include <types.h>
+#include <mmu.h>
 
 //Segments in cpu->gdt
 #define NSEGS 7
@@ -113,6 +114,7 @@ struct context_cpu {
 
 // mp.c
 extern int      ismp;
+extern uchar    ioapicid;
 int             mpbcpu(void);
 void            mpinit(void);
 void            mpstartthem(void);
