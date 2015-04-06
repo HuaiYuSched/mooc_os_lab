@@ -38,7 +38,11 @@ struct context {
 #define MAX_PROCESS                 4096
 #define MAX_PID                     (MAX_PROCESS * 2)
 
-extern list_entry_t proc_list;
+typedef struct {
+	list_entry_t list;
+	spinlock_t lock;
+}proc_list_t;
+extern proc_list_t * proc_list;
 
 struct inode;
 struct fs_struct;

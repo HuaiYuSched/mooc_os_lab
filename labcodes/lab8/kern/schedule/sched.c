@@ -4,13 +4,14 @@
 #include <sched.h>
 #include <stdio.h>
 #include <assert.h>
+#include <atomic.h>
 #include <default_sched.h>
 
 // the list of timer
-static list_entry_t timer_list;
+static timer_list_t __timer_list;
+static timer_list_t *timer_list;
 
 static struct sched_class *sched_class;
-
 static struct run_queue *rq;
 
 static inline void
@@ -44,7 +45,10 @@ static struct run_queue __rq;
 
 void
 sched_init(void) {
-    list_init(&timer_list);
+	timer_list = &__timer_list;
+    list_init(&timer_list->list);
+	spin_init(&timer_list->lock);
+
 
     sched_class = &default_sched_class;
 
@@ -58,8 +62,7 @@ sched_init(void) {
 void
 wakeup_proc(struct proc_struct *proc) {
     assert(proc->state != PROC_ZOMBIE);
-    bool intr_flag;
-    local_intr_save(intr_flag);
+    spin_lock(&rq->lock);
     {
         if (proc->state != PROC_RUNNABLE) {
             proc->state = PROC_RUNNABLE;
@@ -72,14 +75,14 @@ wakeup_proc(struct proc_struct *proc) {
             warn("wakeup runnable process.\n");
         }
     }
-    local_intr_restore(intr_flag);
+    spin_unlock(&rq->lock);
 }
 
 void
 schedule(void) {
-    bool intr_flag;
+   
     struct proc_struct *next;
-    local_intr_save(intr_flag);
+    spin_lock(&rq->lock);
     {
         current->need_resched = 0;
         if (current->state == PROC_RUNNABLE) {
@@ -96,18 +99,17 @@ schedule(void) {
             proc_run(next);
         }
     }
-    local_intr_restore(intr_flag);
+    spin_unlock(&rq->lock);
 }
 
 void
 add_timer(timer_t *timer) {
-    bool intr_flag;
-    local_intr_save(intr_flag);
+    spin_lock(&timer_list->lock);
     {
         assert(timer->expires > 0 && timer->proc != NULL);
         assert(list_empty(&(timer->timer_link)));
-        list_entry_t *le = list_next(&timer_list);
-        while (le != &timer_list) {
+        list_entry_t *le = list_next(&timer_list->list);
+        while (le != &timer_list->list) {
             timer_t *next = le2timer(le, timer_link);
             if (timer->expires < next->expires) {
                 next->expires -= timer->expires;
@@ -118,19 +120,18 @@ add_timer(timer_t *timer) {
         }
         list_add_before(le, &(timer->timer_link));
     }
-    local_intr_restore(intr_flag);
+    spin_unlock(&timer_list->lock);
 }
 
 // del timer from timer_list
 void
 del_timer(timer_t *timer) {
-    bool intr_flag;
-    local_intr_save(intr_flag);
+    spin_lock(&timer_list->lock);
     {
         if (!list_empty(&(timer->timer_link))) {
             if (timer->expires != 0) {
                 list_entry_t *le = list_next(&(timer->timer_link));
-                if (le != &timer_list) {
+                if (le != &timer_list->list) {
                     timer_t *next = le2timer(le, timer_link);
                     next->expires += timer->expires;
                 }
@@ -138,17 +139,16 @@ del_timer(timer_t *timer) {
             list_del_init(&(timer->timer_link));
         }
     }
-    local_intr_restore(intr_flag);
+    spin_unlock(&timer_list->lock);
 }
 
 // call scheduler to update tick related info, and check the timer is expired? If expired, then wakup proc
 void
 run_timer_list(void) {
-    bool intr_flag;
-    local_intr_save(intr_flag);
+    spin_lock(&timer_list->lock);
     {
-        list_entry_t *le = list_next(&timer_list);
-        if (le != &timer_list) {
+        list_entry_t *le = list_next(&timer_list->list);
+        if (le != &timer_list->list) {
             timer_t *timer = le2timer(le, timer_link);
             assert(timer->expires != 0);
             timer->expires --;
@@ -163,7 +163,7 @@ run_timer_list(void) {
                 }
                 wakeup_proc(proc);
                 del_timer(timer);
-                if (le == &timer_list) {
+                if (le == &timer_list->list) {
                     break;
                 }
                 timer = le2timer(le, timer_link);
@@ -171,5 +171,5 @@ run_timer_list(void) {
         }
         sched_class_proc_tick(current);
     }
-    local_intr_restore(intr_flag);
+    spin_unlock(&timer_list->lock);
 }

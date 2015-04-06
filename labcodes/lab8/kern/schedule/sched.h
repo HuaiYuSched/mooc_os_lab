@@ -15,6 +15,11 @@ typedef struct {
     list_entry_t timer_link;    //the timer list
 } timer_t;
 
+typedef struct {
+	list_entry_t list;
+	spinlock_t lock;
+}timer_list_t;
+
 #define le2timer(le, member)            \
 to_struct((le), timer_t, member)
 
@@ -58,6 +63,8 @@ struct run_queue {
     list_entry_t run_list;
     unsigned int proc_num;
     int max_time_slice;
+	//spinlock
+	spinlock_t lock;
     // For LAB6 ONLY
     skew_heap_entry_t *lab6_run_pool;
 };

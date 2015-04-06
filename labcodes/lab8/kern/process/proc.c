@@ -63,7 +63,9 @@ SYS_getpid      : get the process's pid
 */
 
 // the process set's list
-list_entry_t proc_list;
+proc_list_t __proc_list;
+proc_list_t * proc_list;
+
 
 #define HASH_SHIFT          10
 #define HASH_LIST_SIZE      (1 << HASH_SHIFT)
@@ -168,7 +170,7 @@ get_proc_name(struct proc_struct *proc) {
 // set_links - set the relation links of process
 static void
 set_links(struct proc_struct *proc) {
-    list_add(&proc_list, &(proc->list_link));
+    list_add(&proc_list->list, &(proc->list_link));
     proc->yptr = NULL;
     if ((proc->optr = proc->parent->cptr) != NULL) {
         proc->optr->yptr = proc;
@@ -198,7 +200,7 @@ static int
 get_pid(void) {
     static_assert(MAX_PID > MAX_PROCESS);
     struct proc_struct *proc;
-    list_entry_t *list = &proc_list, *le;
+    list_entry_t *list = &proc_list->list, *le;
     static int next_safe = MAX_PID, last_pid = MAX_PID;
     if (++ last_pid >= MAX_PID) {
         last_pid = 1;
@@ -233,16 +235,15 @@ get_pid(void) {
 void
 proc_run(struct proc_struct *proc) {
     if (proc != current) {
-        bool intr_flag;
         struct proc_struct *prev = current, *next = proc;
-        local_intr_save(intr_flag);
+		spin_lock(&proc_list->lock);
         {
             current = proc;
             load_esp0(next->kstack + KSTACKSIZE);
             lcr3(next->cr3);
             switch_to(&(prev->context), &(next->context));
         }
-        local_intr_restore(intr_flag);
+		spin_unlock(&proc_list->lock);
     }
 }
 
@@ -446,7 +447,6 @@ int
 do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     int ret = -E_NO_FREE_PROC;
     struct proc_struct *proc;
-    bool intr_flag;
     if (nr_process >= MAX_PROCESS) {
         goto fork_out;
     }
@@ -500,13 +500,13 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
 	if((copy_files(clone_flags,proc))!=0)
 		goto bad_fork_cleanup_fs;		//Add for LAB 8
 	
-    local_intr_save(intr_flag);
+	spin_lock(&proc_list->lock);
     {
 		proc->pid=get_pid();
         hash_proc(proc);
 		set_links(proc);
     }
-    local_intr_restore(intr_flag);
+	spin_unlock(&proc_list->lock);
 	wakeup_proc(proc);
 	ret=proc->pid;
 
@@ -1031,8 +1031,8 @@ init_main(void *arg) {
     cprintf("all user-mode processes have quit.\n");
     assert(initproc->cptr == NULL && initproc->yptr == NULL && initproc->optr == NULL);
     assert(nr_process == 2);
-    assert(list_next(&proc_list) == &(initproc->list_link));
-    assert(list_prev(&proc_list) == &(initproc->list_link));
+    assert(list_next(&proc_list->list) == &(initproc->list_link));
+    assert(list_prev(&proc_list->list) == &(initproc->list_link));
 
     cprintf("init check memory pass.\n");
     return 0;
@@ -1044,7 +1044,9 @@ void
 proc_init(void) {
     int i;
 
-    list_init(&proc_list);
+	proc_list = &__proc_list;
+    list_init(&proc_list->list);
+	spin_init(&proc_list->lock);
     for (i = 0; i < HASH_LIST_SIZE; i ++) {
         list_init(hash_list + i);
     }

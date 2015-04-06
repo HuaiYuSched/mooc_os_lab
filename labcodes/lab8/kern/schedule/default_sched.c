@@ -7,6 +7,7 @@
 static void
 RR_init(struct run_queue *rq) {
     list_init(&(rq->run_list));
+	spin_init(&rq->lock);
     rq->proc_num = 0;
 }
 
