@@ -89,7 +89,7 @@ typedef struct spinlock{
 #define spin_init_locked(sl) arch_spin_init_locked(sl)
 #define spin_is_locked(sl) arch_spin_is_locked(sl)
 #define spin_lock(sl) arch_spin_lock(sl)
-#define spin_try_lock(sl) arch_spin_try_lock(sl)
+#define spin_trylock(sl) arch_spin_trylock(sl)
 #define spin_unlock(sl) arch_spin_unlock(sl)
 
 
@@ -97,7 +97,7 @@ typedef struct spinlock{
 
 #define arch_spin_init_locked(sl) ((sl)->locked = SPIN_LOCK_LOCKED)
 
-#define arch_spin_is_locked ((sl)->locked!=0)
+#define arch_spin_is_locked(sl) ((sl)->locked<=0)
 
 static inline void arch_spin_lock(spinlock_t *sl)
 {
@@ -135,7 +135,7 @@ static inline int arch_spin_trylock(spinlock_t *sl)
 #else
 #define spin_init(sl) 
 #define spin_init_locked(sl) 
-#define spin_is_locked(sl) 
+#define spin_is_locked(sl)  ((sl)->locked<=0)
 #define spin_lock(sl) 
 #define spin_try_lock(sl) 
 #define spin_unlock(sl) 
