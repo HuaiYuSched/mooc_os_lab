@@ -78,11 +78,11 @@ test_and_clear_bit(int nr, volatile void *addr) {
 }
 
 typedef struct spinlock{
-	volatile int32_t locker;
+	volatile int32_t locked;
 }spinlock_t;
 
-#define SPIN_LOCK_UNLOCK 1;
-#define SPIN_LOCK_LOCKED 0;
+#define SPIN_LOCK_UNLOCK 1
+#define SPIN_LOCK_LOCKED 0
 
 #ifdef CFG_SMP		//Only if SMP, the spin lock will work
 #define spin_init(sl) arch_spin_init(sl)
@@ -93,11 +93,11 @@ typedef struct spinlock{
 #define spin_unlock(sl) arch_spin_unlock(sl)
 
 
-#define arch_spin_init(sl)	(sl->locked = SPIN_LOCK_UNLOCK;)
+#define arch_spin_init(sl)	((sl)->locked = SPIN_LOCK_UNLOCK)
 
-#define arch_spin_init_locked(sl) (sl->locked = SPIN_LOCK_LOCKED;)
+#define arch_spin_init_locked(sl) ((sl)->locked = SPIN_LOCK_LOCKED)
 
-#define arch_spin_is_locked (sl->locked!=0)
+#define arch_spin_is_locked ((sl)->locked!=0)
 
 static inline void arch_spin_lock(spinlock_t *sl)
 {
@@ -110,7 +110,7 @@ static inline void arch_spin_lock(spinlock_t *sl)
 			"jle 2b\n\t"\
 			"jmp 1b\n\t"\
 			"3:\n\t"\
-			:"=m" (sl->locker) : : "memory"
+			:"=m" (sl->locked) : : "memory"
 			);
 }
 
@@ -119,7 +119,7 @@ static inline void arch_spin_unlock(spinlock_t *sl)
 	char oldval=1;
 	__asm__ __volatile__(
 		"xchgb %b0,%1"
-		:"=q" (oldval), "=m" (sl->locker)
+		:"=q" (oldval), "=m" (sl->locked)
 		:"0" (oldval) : "memory");
 }
 static inline int arch_spin_trylock(spinlock_t *sl)
@@ -127,7 +127,7 @@ static inline int arch_spin_trylock(spinlock_t *sl)
 	char oldval;
 	__asm__ __volatile__(
 			"xchgb %b0,%1"
-			:"=q" (oldval), "=m" (sl->locker)
+			:"=q" (oldval), "=m" (sl->locked)
 			:"0" (0) : "memory");
 	return oldval > 0;
 }
