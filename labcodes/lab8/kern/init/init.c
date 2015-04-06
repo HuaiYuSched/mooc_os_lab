@@ -42,9 +42,10 @@ kern_init(void) {
 	lapicinit();
     pmm_init();                 // init physical memory management
 
-	cprintf("\ncpu%d: starting ucore\n\n", current_cpu->id);
+//	cprintf("\ncpu%d: starting ucore\n\n", current_cpu->id);
     pic_init();                 // init interrupt controller
     idt_init();                 // init interrupt descriptor table
+	ioapicinit();
 
     vmm_init();                 // init virtual memory management
     sched_init();               // init scheduler

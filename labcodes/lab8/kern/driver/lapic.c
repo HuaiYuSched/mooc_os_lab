@@ -99,9 +99,10 @@ lapicinit(void)
 
   // Enable interrupts on the APIC (but not on the processor).
   lapicw(TPR, 0);
+  
 }
 
-int  fixmap_lapic();
+int  fixmap(volatile uint);
 int
 cpunum(void)
 {
@@ -116,18 +117,17 @@ cpunum(void)
       cprintf("cpu called from %x with interrupts enabled\n",
         __builtin_return_address(0));
   }
-  fixmap_lapic();
-
+  fixmap(lapic);
   if(lapic)
     return lapic[ID]>>24;
   return 0;
 }
 // design for UCORE
-int fixmap_lapic( void)
+int fixmap(volatile uint addr)
 {
   int ret=0;
-  uintptr_t start = ROUNDDOWN(lapic,PGSIZE);
-  uintptr_t end = ROUNDUP(lapic + 30, PGSIZE);
+  uintptr_t start = ROUNDDOWN(addr,PGSIZE);
+  uintptr_t end = ROUNDUP(addr + 30, PGSIZE);
   uint32_t  vm_flags =0;
   check_mm_struct = mm_create();
   assert(check_mm_struct != NULL);
@@ -136,7 +136,7 @@ int fixmap_lapic( void)
   assert(mm!= NULL);
 
   struct vma_struct *vma;
-  pde_t *pdep = &pgdir[PDX(lapic)];
+  pde_t *pdep = &pgdir[PDX(addr)];
   pte_t * ptep;
 //  *pdep= PDX(start)| PTE_W|PTE_P;
   ptep = get_pte(pgdir,start,1);
@@ -149,7 +149,7 @@ int fixmap_lapic( void)
   }
   vm_flags |= VM_READ;
 
-  if((vma = vma_create(lapic,lapic + 0x100,vm_flags))==0)
+  if((vma = vma_create(addr,addr + 0x100,vm_flags))==0)
   {
      cprintf("vma create error\n");
      goto out;

@@ -5,7 +5,7 @@
 #include <types.h>
 #include <mp.h>
 #include <trap.h>
-
+#include <lapic.h>
 #define IOAPIC  0xFEC00000   // Default physical address of IO APIC
 
 #define REG_ID     0x00  // Register index: ID
@@ -52,8 +52,8 @@ ioapicinit(void)
 
   if(!ismp)
     return;
-
   ioapic = (volatile struct ioapic*)IOAPIC;
+  fixmap(ioapic);
   maxintr = (ioapicread(REG_VER) >> 16) & 0xFF;
   id = ioapicread(REG_ID) >> 24;
   if(id != ioapicid)
